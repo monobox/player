@@ -22,17 +22,32 @@ from __future__ import unicode_literals
 
 import logging
 import gi
+import pykka
 
 gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
+
+import listener
 
 GObject.threads_init()
 Gst.init(None)
 
 logger = logging.getLogger(__name__)
 
-class Player(object):
+
+class PlayerListener(listener.Listener):
+    @staticmethod
+    def send(event, **kwargs):
+        listener.send_async(PlayerListener, event, **kwargs)
+
+    def playback_error(self, code, message):
+        pass
+
+
+class Player(pykka.ThreadingActor):
     def __init__(self):
+        super(Player, self).__init__()
+
         self.playbin = Gst.ElementFactory.make('playbin', 'playbin')
         fakesink = Gst.ElementFactory.make('fakesink', 'fakesink')
         self.playbin.set_property('video-sink', fakesink)
@@ -46,26 +61,34 @@ class Player(object):
         self.playbin.set_state(Gst.State.PLAYING)
 
     def on_message(self, bus, message):
-        logger.info('on_message: %s' % str(message))
-
         t = message.type
-        if t == Gst.MessageType.EOS:
-            self.playbin.set_state(Gst.State.NULL)
-        elif t == Gst.MessageType.ERROR:
+        if t == Gst.MessageType.ERROR:
             self.playbin.set_state(Gst.State.NULL)
             err, debug = message.parse_error()
             logger.error('Error: %s (debug=%s)' % (err, debug))
+            PlayerListener.send('playback_error', code=err.code, message=err.message)
 
 
 if __name__ == '__main__':
     import log
 
-    log.init()
-    player = Player()
-    player.play('http://uwstream1.somafm.com:80')
+    class TestListener(pykka.ThreadingActor, PlayerListener):
+        def playback_error(self, code, message):
+            logger.info('Got error code=%s message=%s' % (code, message))
+
+    log.init(debug=True)
+    test_listener = TestListener.start()
+
+    player = Player.start()
+    player_proxy = player.proxy()
+
+    player_proxy.play('http://uwstream1.somafm.com:80/').get()
 
     main_loop = GObject.MainLoop()
     try:
         main_loop.run()
     except KeyboardInterrupt:
         pass
+
+    test_listener.stop()
+    player.stop()
