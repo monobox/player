@@ -34,6 +34,16 @@ Gst.init(None)
 
 logger = logging.getLogger(__name__)
 
+GST_PLAY_FLAG_VIDEO = (1 << 0)
+GST_PLAY_FLAG_AUDIO = (1 << 1)
+GST_PLAY_FLAG_TEXT = (1 << 2)
+GST_PLAY_FLAG_VIS = (1 << 3)
+GST_PLAY_FLAG_SOFT_VOLUME = (1 << 4)
+GST_PLAY_FLAG_NATIVE_AUDIO = (1 << 5)
+GST_PLAY_FLAG_NATIVE_VIDEO = (1 << 6)
+GST_PLAY_FLAG_DOWNLOAD = (1 << 7),
+GST_PLAY_FLAG_BUFFERING = (1 << 8)
+
 
 class PlayerListener(listener.Listener):
     @staticmethod
@@ -49,8 +59,7 @@ class Player(pykka.ThreadingActor):
         super(Player, self).__init__()
 
         self._playbin = Gst.ElementFactory.make('playbin', 'playbin')
-        fakesink = Gst.ElementFactory.make('fakesink', 'fakesink')
-        self._playbin.set_property('video-sink', fakesink)
+        self._playbin.set_property('flags', GST_PLAY_FLAG_AUDIO)
         bus = self._playbin.get_bus()
         bus.add_signal_watch()
         bus.connect('message', self._on_gst_message)
@@ -62,6 +71,10 @@ class Player(pykka.ThreadingActor):
 
     def stop_playback(self):
         self._playbin.set_state(Gst.State.NULL)
+
+    def set_volume(self, level):
+        self._playbin.set_property('volume', level)
+        logger.debug('Volume level set to %.2f' % level)
 
     def _on_gst_message(self, bus, message):
         t = message.type

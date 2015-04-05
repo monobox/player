@@ -48,6 +48,9 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
     def powered_on(self):
         self.play_next()
 
+    def volume_changed(self, new_volume):
+        self._player_p.set_volume(new_volume).get()
+
     def button_pressed(self):
         if self._smc_p.is_on().get():
             self.play_next()

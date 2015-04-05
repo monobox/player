@@ -93,7 +93,7 @@ class SMC(pykka.ThreadingActor):
             else:
                 SMCListener.send('powered_off')
         elif typ == 'V':
-            SMCListener.send('volume_changed', new_volume=value)
+            SMCListener.send('volume_changed', new_volume=value / 100.0)
         elif typ == 'B' and value == 1:
             if value:
                 SMCListener.send('button_pressed')
