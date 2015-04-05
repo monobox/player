@@ -90,7 +90,7 @@ class FeedbackPlayer(pykka.ThreadingActor):
     def __init__(self, assets_base_path, volume):
         super(FeedbackPlayer, self).__init__()
 
-        self._assets_base_path = os.path.abspath(assets_base_path)
+        self._assets_base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), assets_base_path))
         self._loop = False
 
         self._playbin = Gst.ElementFactory.make('playbin', 'feedback-playbin')

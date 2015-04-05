@@ -26,4 +26,9 @@ setup(
     install_requires=[
         'setuptools',
     ],
+    entry_points={
+            'console_scripts': [
+                    'monobox-player = monobox_player.main:run',
+            ],
+    },
 )
