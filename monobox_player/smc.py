@@ -59,6 +59,7 @@ class SMC(pykka.ThreadingActor):
             raise RuntimeError('SMC serial connection failed: %s' % error)
 
         self._buffer = ''
+        self._is_on = False
 
     def on_start(self):
         self._serial.flushInput()
@@ -67,6 +68,9 @@ class SMC(pykka.ThreadingActor):
 
     def on_stop(self):
         self._running = False
+
+    def is_on(self):
+        return self._is_on
 
     def _thread_run(self):
         self._running = True
@@ -83,6 +87,7 @@ class SMC(pykka.ThreadingActor):
 
     def _process_parsed(self, typ, value):
         if typ == 'P':
+            self._is_on = bool(value)
             if value:
                 SMCListener.send('powered_on')
             else:

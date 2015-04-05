@@ -49,7 +49,8 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
         self.play_next()
 
     def button_pressed(self):
-        self.play_next()
+        if self._smc_p.is_on().get():
+            self.play_next()
 
     def playback_error(self, code, message):
         self.play_next()
