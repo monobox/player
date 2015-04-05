@@ -108,6 +108,7 @@ class SMC(pykka.ThreadingActor):
 
 if __name__ == '__main__':
     from gi.repository import GObject
+    import log
 
     class TestListener(pykka.ThreadingActor, SMCListener):
         def volume_changed(self, new_volume):
@@ -122,7 +123,7 @@ if __name__ == '__main__':
         def button_pressed(self):
             logging.info('Button pressed')
 
-    logging.basicConfig(level=logging.DEBUG, format='%(asctime)-15s [%(levelname)-7s]: %(message)s (%(filename)s:%(lineno)s)')
+    log.init(debug=True)
     test_listener = TestListener.start()
     smc = SMC.start('/dev/ttyACM0')
 

@@ -58,7 +58,9 @@ class Player(object):
 
 
 if __name__ == '__main__':
-    logging.basicConfig()
+    import log
+
+    log.init()
     player = Player()
     player.play('http://uwstream1.somafm.com:80')
 

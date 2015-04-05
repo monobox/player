@@ -55,7 +55,9 @@ class PlaylistFetcher(pykka.ThreadingActor):
 
 
 if __name__ == '__main__':
-    logging.basicConfig()
+    import log
+
+    log.init()
     fetcher = PlaylistFetcher.start()
     fetcher_proxy = fetcher.proxy()
     print fetcher_proxy.fetch('http://somafm.com/groovesalad.pls').get()
