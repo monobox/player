@@ -48,25 +48,25 @@ class Player(pykka.ThreadingActor):
     def __init__(self):
         super(Player, self).__init__()
 
-        self.playbin = Gst.ElementFactory.make('playbin', 'playbin')
+        self._playbin = Gst.ElementFactory.make('playbin', 'playbin')
         fakesink = Gst.ElementFactory.make('fakesink', 'fakesink')
-        self.playbin.set_property('video-sink', fakesink)
-        bus = self.playbin.get_bus()
+        self._playbin.set_property('video-sink', fakesink)
+        bus = self._playbin.get_bus()
         bus.add_signal_watch()
-        bus.connect('message', self.on_message)
+        bus.connect('message', self._on_gst_message)
 
     def play(self, url):
         self.stop_playback()
-        self.playbin.set_property('uri', url)
-        self.playbin.set_state(Gst.State.PLAYING)
+        self._playbin.set_property('uri', url)
+        self._playbin.set_state(Gst.State.PLAYING)
 
     def stop_playback(self):
-        self.playbin.set_state(Gst.State.NULL)
+        self._playbin.set_state(Gst.State.NULL)
 
-    def on_message(self, bus, message):
+    def _on_gst_message(self, bus, message):
         t = message.type
         if t == Gst.MessageType.ERROR:
-            self.playbin.set_state(Gst.State.NULL)
+            self._playbin.set_state(Gst.State.NULL)
             err, debug = message.parse_error()
             logger.error('Error: %s (debug=%s)' % (err, debug))
             PlayerListener.send('playback_error', code=err.code, message=err.message)

@@ -58,30 +58,30 @@ class SMC(pykka.ThreadingActor):
         except Exception as error:
             raise RuntimeError('SMC serial connection failed: %s' % error)
 
-        self.buffer = ''
+        self._buffer = ''
 
     def on_start(self):
         self._serial.flushInput()
-        thread = threading.Thread(target=self.thread_run)
+        thread = threading.Thread(target=self._thread_run)
         thread.start()
 
     def on_stop(self):
-        self.running = False
+        self._running = False
 
-    def thread_run(self):
-        self.running = True
-        while self.running:
+    def _thread_run(self):
+        self._running = True
+        while self._running:
             ch = self._serial.read()
             if ch not in ('', '\r'):
-                self.buffer += ch
+                self._buffer += ch
 
             # logger.debug('SMC buf: %s' % str([c for c in self.buffer]))
 
-            while '\n' in self.buffer:
-                self.process_line(self.buffer[0:self.buffer.find('\n')])
-                self.buffer = self.buffer[self.buffer.find('\n') + 1:]
+            while '\n' in self._buffer:
+                self._process_line(self._buffer[0:self._buffer.find('\n')])
+                self._buffer = self._buffer[self._buffer.find('\n') + 1:]
 
-    def process_parsed(self, typ, value):
+    def _process_parsed(self, typ, value):
         if typ == 'P':
             if value:
                 SMCListener.send('powered_on')
@@ -93,7 +93,7 @@ class SMC(pykka.ThreadingActor):
             if value:
                 SMCListener.send('button_pressed')
 
-    def process_line(self, line):
+    def _process_line(self, line):
         logger.debug('SMC process line: %s' % line)
         res = re.search(r'^([BPV]):(\-?\d+)$', line)
         if res:
@@ -103,7 +103,7 @@ class SMC(pykka.ThreadingActor):
             except ValueError:
                 logger.warning('Cannot decode value %s (line=%s)' % (value, line))
             else:
-                self.process_parsed(typ, value)
+                self._process_parsed(typ, value)
 
 
 if __name__ == '__main__':
