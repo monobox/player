@@ -41,6 +41,7 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
         self._player = player.StreamPlayer.start().proxy()
         self._feedback = player.FeedbackPlayer(config.get('feedback_player', 'assets_path'),
                                                config.getfloat('feedback_player', 'volume'))
+        # TODO: wrap smc initialisation to prevent lockups
         self._smc = smc.SMC.start(config.get('smc', 'serial_port')).proxy()
 
     def on_stop(self):
@@ -52,6 +53,7 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
 
     def powered_off(self):
         self._player.stop_playback()
+        # TODO: the refresh happens twice at startup, since the smc reports powered_off
         self._stationspool.refresh().get()
 
     def powered_on(self):
