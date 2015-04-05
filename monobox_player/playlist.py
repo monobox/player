@@ -40,9 +40,6 @@ def pls_parse(data):
     return urls
 
 class PlaylistFetcher(pykka.ThreadingActor):
-    def __init__(self):
-        super(PlaylistFetcher, self).__init__()
-
     def fetch(self, url):
         try:
             request = requests.get(url)
