@@ -56,9 +56,8 @@ if __name__ == '__main__':
 
     log.init(debug=True)
 
-    client = StationsPool.start('http://api.monobox.net/random')
-    client_proxy = client.proxy()
+    client = StationsPool.start('http://api.monobox.net/random').proxy()
     for i in xrange(300):
-        print client_proxy.next_station().get()
+        print client.next_station().get()
 
     client.stop()

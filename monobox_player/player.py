@@ -20,6 +20,7 @@
 
 from __future__ import unicode_literals
 
+import os
 import logging
 import gi
 import pykka
@@ -27,10 +28,10 @@ import pykka
 gi.require_version('Gst', '1.0')
 from gi.repository import GObject, Gst
 
-import listener
-
 GObject.threads_init()
 Gst.init(None)
+
+import listener
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +55,11 @@ class PlayerListener(listener.Listener):
         pass
 
 
-class Player(pykka.ThreadingActor):
+class StreamPlayer(pykka.ThreadingActor):
     def __init__(self):
-        super(Player, self).__init__()
+        super(StreamPlayer, self).__init__()
 
-        self._playbin = Gst.ElementFactory.make('playbin', 'playbin')
+        self._playbin = Gst.ElementFactory.make('playbin', 'stream-playbin')
         self._playbin.set_property('flags', GST_PLAY_FLAG_AUDIO)
         bus = self._playbin.get_bus()
         bus.add_signal_watch()
@@ -74,7 +75,7 @@ class Player(pykka.ThreadingActor):
 
     def set_volume(self, level):
         self._playbin.set_property('volume', level)
-        logger.debug('Volume level set to %.2f' % level)
+        logger.debug('Stream volume level set to %.2f' % level)
 
     def _on_gst_message(self, bus, message):
         t = message.type
@@ -83,6 +84,46 @@ class Player(pykka.ThreadingActor):
             err, debug = message.parse_error()
             logger.error('Error: %s (debug=%s)' % (err, debug))
             PlayerListener.send('playback_error', code=err.code, message=err.message)
+
+
+class FeedbackPlayer(pykka.ThreadingActor):
+    def __init__(self, assets_base_path, volume):
+        super(FeedbackPlayer, self).__init__()
+
+        self._assets_base_path = os.path.abspath(assets_base_path)
+        self._loop = False
+
+        self._playbin = Gst.ElementFactory.make('playbin', 'feedback-playbin')
+        self._playbin.set_property('flags', GST_PLAY_FLAG_AUDIO)
+
+        bus = self._playbin.get_bus()
+        bus.add_signal_watch()
+        bus.connect('message', self._on_gst_message)
+
+        self.set_volume(volume)
+
+    def play(self, tag, loop=False):
+        logger.debug('Playing %s (loop=%s)' % (tag, loop))
+        self.stop_playback()
+        self._loop = loop
+        self._playbin.set_property('uri', 'file://%s/%s.wav' % (self._assets_base_path, tag))
+        self._playbin.set_state(Gst.State.PLAYING)
+
+    def stop_playback(self):
+        self._playbin.set_state(Gst.State.NULL)
+
+    def set_volume(self, level):
+        self._playbin.set_property('volume', level)
+        logger.debug('Feedback volume level set to %.2f' % level)
+
+    def _on_gst_message(self, bus, message):
+        t = message.type
+        if t == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            logger.error('Error: %s (debug=%s)' % (err, debug))
+        elif t == Gst.MessageType.EOS:
+            if self._loop:
+                self._playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, 0)
 
 
 if __name__ == '__main__':
@@ -95,10 +136,12 @@ if __name__ == '__main__':
     log.init(debug=True)
     test_listener = TestListener.start()
 
-    player = Player.start()
-    player_proxy = player.proxy()
+    player = StreamPlayer.start().proxy()
+    feedback = FeedbackPlayer.start('assets', 0.5).proxy()
 
-    player_proxy.play('http://uwstream1.somafm.com:80/').get()
+    player.set_volume(1.0)
+    player.play('http://uwstream1.somafm.com:80/').get()
+    feedback.play('next', True).get()
 
     main_loop = GObject.MainLoop()
     try:
@@ -108,3 +151,4 @@ if __name__ == '__main__':
 
     test_listener.stop()
     player.stop()
+    feedback.stop()

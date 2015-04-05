@@ -30,29 +30,32 @@ import log
 
 class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
     def on_start(self):
-        self._stationspool_p = stationspool.StationsPool.start('http://api.monobox.net/random').proxy()
-        self._playlist_p = playlist.PlaylistFetcher.start().proxy()
-        self._player_p = player.Player.start().proxy()
-        self._smc_p = smc.SMC.start('/dev/ttyACM0').proxy()
+        self._stationspool = stationspool.StationsPool.start('http://api.monobox.net/random').proxy()
+        self._playlist = playlist.PlaylistFetcher.start().proxy()
+        self._player = player.StreamPlayer.start().proxy()
+        self._feedback = player.FeedbackPlayer('assets', 0.5)
+        self._smc = smc.SMC.start('/dev/ttyACM0').proxy()
 
     def on_stop(self):
-        self._smc_p.stop()
-        self._player_p.stop()
-        self._playlist_p.stop()
-        self._stationspool_p.stop()
+        self._smc.stop()
+        self._feedback.stop()
+        self._player.stop()
+        self._playlist.stop()
+        self._stationspool.stop()
 
     def powered_off(self):
-        self._player_p.stop_playback()
-        self._stationspool_p.refresh().get()
+        self._player.stop_playback()
+        self._stationspool.refresh().get()
 
     def powered_on(self):
         self.play_next()
 
     def volume_changed(self, new_volume):
-        self._player_p.set_volume(new_volume).get()
+        self._player.set_volume(new_volume).get()
 
     def button_pressed(self):
-        if self._smc_p.is_on().get():
+        if self._smc.is_on().get():
+            self._feedback.play('click')
             self.play_next()
 
     def playback_error(self, code, message):
@@ -60,11 +63,11 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
 
     def play_next(self):
         while True:
-            urls = self._playlist_p.fetch(self._stationspool_p.next_station().get()).get()
+            urls = self._playlist.fetch(self._stationspool.next_station().get()).get()
             if urls:
                 break
 
-        self._player_p.play(urls[0]).get()
+        self._player.play(urls[0]).get()
 
 def run():
     from gi.repository import GObject

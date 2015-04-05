@@ -55,7 +55,6 @@ if __name__ == '__main__':
     import log
 
     log.init()
-    fetcher = PlaylistFetcher.start()
-    fetcher_proxy = fetcher.proxy()
-    print fetcher_proxy.fetch('http://somafm.com/groovesalad.pls').get()
+    fetcher = PlaylistFetcher.start().proxy()
+    print fetcher.fetch('http://somafm.com/groovesalad.pls').get()
     fetcher.stop()
