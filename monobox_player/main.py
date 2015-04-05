@@ -20,6 +20,7 @@
 
 from __future__ import unicode_literals
 
+import logging
 import pykka
 
 import player
@@ -27,6 +28,9 @@ import smc
 import playlist
 import stationspool
 import log
+
+logger = logging.getLogger(__name__)
+
 
 class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
     def on_start(self):
@@ -63,11 +67,15 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
 
     def play_next(self):
         while True:
-            urls = self._playlist.fetch(self._stationspool.next_station().get()).get()
+            playlist_url = self._stationspool.next_station().get()
+            urls = self._playlist.fetch(playlist_url).get()
             if urls:
                 break
+            else:
+                logger.warning('Empty playlist at url %s' % playlist_url)
 
         self._player.play(urls[0]).get()
+
 
 def run():
     from gi.repository import GObject
