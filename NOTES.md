@@ -1,6 +1,7 @@
 ## Gstreamer
 
 * https://wiki.ubuntu.com/Novacut/GStreamer1.0
+* https://github.com/rubenrua/GstreamerCodeSnippets/tree/master/1.0/Python/pygst-tutorial
 
 ## Sample sources
 
