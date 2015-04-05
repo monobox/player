@@ -22,23 +22,26 @@ from __future__ import unicode_literals
 
 import logging
 import pykka
+from gi.repository import GObject
 
 import player
 import smc
 import playlist
 import stationspool
 import log
+import config
 
 logger = logging.getLogger(__name__)
 
 
 class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
     def on_start(self):
-        self._stationspool = stationspool.StationsPool.start('http://api.monobox.net/random').proxy()
+        self._stationspool = stationspool.StationsPool.start(config.get('stations_pool', 'api_url')).proxy()
         self._playlist = playlist.PlaylistFetcher.start().proxy()
         self._player = player.StreamPlayer.start().proxy()
-        self._feedback = player.FeedbackPlayer('assets', 0.5)
-        self._smc = smc.SMC.start('/dev/ttyACM0').proxy()
+        self._feedback = player.FeedbackPlayer(config.get('feedback_player', 'assets_path'),
+                                               config.getfloat('feedback_player', 'volume'))
+        self._smc = smc.SMC.start(config.get('smc', 'serial_port')).proxy()
 
     def on_stop(self):
         self._smc.stop()
@@ -78,9 +81,10 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
 
 
 def run():
-    from gi.repository import GObject
+    # TODO: CAE with log vs config initialization (debug mode, output file)
+    log.init()
+    config.init()
 
-    log.init(debug=True)
     main = Main.start()
 
     main_loop = GObject.MainLoop()

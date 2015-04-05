@@ -41,10 +41,10 @@ def init(config_file=None):
         config_file = args.config
 
     if not os.path.isfile(config_file):
-        logging.error('Cannot file config file %s' % config_file)
+        logger.error('Cannot file config file %s' % config_file)
         sys.exit(1)
     else:
-        logging.info('Loading config from %s' % config_file)
+        logger.info('Loading config from %s' % config_file)
     _inst = ConfigParser.ConfigParser()
     _inst.read(config_file)
 
