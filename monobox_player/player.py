@@ -56,9 +56,12 @@ class Player(pykka.ThreadingActor):
         bus.connect('message', self.on_message)
 
     def play(self, url):
-        self.playbin.set_state(Gst.State.NULL)
+        self.stop_playback()
         self.playbin.set_property('uri', url)
         self.playbin.set_state(Gst.State.PLAYING)
+
+    def stop_playback(self):
+        self.playbin.set_state(Gst.State.NULL)
 
     def on_message(self, bus, message):
         t = message.type

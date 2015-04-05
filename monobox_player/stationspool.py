@@ -34,7 +34,7 @@ class StationsPool(pykka.ThreadingActor):
         self._stations_url = stations_url
 
     def on_start(self):
-        self._fetch()
+        self.refresh()
 
     def next_station(self):
         if not self._stations:
@@ -43,10 +43,12 @@ class StationsPool(pykka.ThreadingActor):
 
         return self._stations.pop()
 
-    def _fetch(self):
+    def refresh(self):
+        logging.info('Refreshing stations pool')
         request = requests.get(self._stations_url)
         self._stations_pool = request.json()['urls']
         self._stations = self._stations_pool[:]
+        logging.info('%d stations loaded' % len(self._stations_pool))
 
 
 if __name__ == '__main__':
