@@ -25,6 +25,8 @@ setup(
     include_package_data=True,
     install_requires=[
         'setuptools',
+        'Pykka >= 1.2',
+        'requests >= 2.2',
     ],
     entry_points={
             'console_scripts': [
