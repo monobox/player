@@ -112,13 +112,13 @@ if __name__ == '__main__':
 
     class TestListener(pykka.ThreadingActor, SMCListener):
         def volume_changed(self, new_volume):
-            print 'Volume: %d' % new_volume
+            logging.info('Volume: %d' % new_volume)
 
         def powered_on(self):
-            print 'Powered ON'
+            logging.info('Powered ON')
 
         def powered_off(self):
-            print 'Powered OFF'
+            logging.info('Powered OFF')
 
         def button_pressed(self):
             logging.info('Button pressed')
