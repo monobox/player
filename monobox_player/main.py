@@ -20,6 +20,7 @@
 
 from __future__ import unicode_literals
 
+import sys
 import logging
 import pykka
 from gi.repository import GObject
@@ -34,37 +35,25 @@ import config
 logger = logging.getLogger(__name__)
 
 
-class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
-    def on_start(self):
-        self._stationspool = stationspool.StationsPool.start(config.get('stations_pool', 'api_url')).proxy()
-        self._playlist = playlist.PlaylistFetcher.start().proxy()
-        self._player = player.StreamPlayer.start().proxy()
-        self._feedback = player.FeedbackPlayer(config.get('feedback_player', 'assets_path'),
-                                               config.getfloat('feedback_player', 'volume'))
-        # TODO: wrap smc initialisation to prevent lockups
-        self._smc = smc.SMC.start(config.get('smc', 'serial_port')).proxy()
-
-    def on_stop(self):
-        self._smc.stop()
-        self._feedback.stop()
-        self._player.stop()
-        self._playlist.stop()
-        self._stationspool.stop()
+class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
+    def __init__(self, plumbing):
+        super(MainController, self).__init__()
+        self.plumbing = plumbing
 
     def powered_off(self):
-        self._player.stop_playback()
+        self.plumbing.player.stop_playback()
         # TODO: the refresh happens twice at startup, since the smc reports powered_off
-        self._stationspool.refresh().get()
+        self.plumbing.stations_pool.refresh().get()
 
     def powered_on(self):
         self.play_next()
 
     def volume_changed(self, new_volume):
-        self._player.set_volume(new_volume).get()
+        self.plumbing.player.set_volume(new_volume).get()
 
     def button_pressed(self):
-        if self._smc.is_on().get():
-            self._feedback.play('click')
+        if self.plumbing.smc.is_on().get():
+            self.plumbing.feedback.play('click')
             self.play_next()
 
     def playback_error(self, code, message):
@@ -72,14 +61,38 @@ class Main(pykka.ThreadingActor, player.PlayerListener, smc.SMCListener):
 
     def play_next(self):
         while True:
-            playlist_url = self._stationspool.next_station().get()
-            urls = self._playlist.fetch(playlist_url).get()
+            playlist_url = self.plumbing.stations_pool.next_station().get()
+            urls = self.plumbing.playlist.fetch(playlist_url).get()
             if urls:
                 break
             else:
                 logger.warning('Empty playlist at url %s' % playlist_url)
 
-        self._player.play(urls[0]).get()
+        self.plumbing.player.play(urls[0]).get()
+
+
+class Plumbing(object):
+    def setup(self):
+        try:
+            self.smc = smc.SMC.start(config.get('smc', 'serial_port')).proxy()
+        except Exception, e:
+            logger.error('Cannot initialize SMC: %s' % str(e))
+            raise
+
+        self.stations_pool = stationspool.StationsPool.start(config.get('stations_pool', 'api_url')).proxy()
+        self.playlist = playlist.PlaylistFetcher.start().proxy()
+        self.player = player.StreamPlayer.start().proxy()
+        self.feedback = player.FeedbackPlayer(config.get('feedback_player', 'assets_path'),
+                                               config.getfloat('feedback_player', 'volume'))
+        self._main_controller = MainController.start(self)
+
+    def teardown(self):
+        self.smc.stop()
+        self.feedback.stop()
+        self.player.stop()
+        self.playlist.stop()
+        self.stations_pool.stop()
+        self._main_controller.stop()
 
 
 def run():
@@ -87,7 +100,12 @@ def run():
     log.init()
     config.init()
 
-    main = Main.start()
+    plumbing = Plumbing()
+    try:
+        plumbing.setup()
+    except Exception, e:
+        logger.exception(e)
+        sys.exit(1)
 
     main_loop = GObject.MainLoop()
     try:
@@ -95,7 +113,7 @@ def run():
     except KeyboardInterrupt:
         pass
 
-    main.stop()
+    plumbing.teardown()
 
 
 if __name__ == '__main__':
