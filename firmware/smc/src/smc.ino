@@ -14,7 +14,7 @@ Bounce powDebouncer = Bounce();
 
 void checkMainButton()
 {
-    static int8_t lastMainState = -1;
+    static int8_t lastMainState = 1;
     int8_t state;
 
     mainDebouncer.update();
@@ -28,7 +28,7 @@ void checkMainButton()
 
 void checkPowerSwitch()
 {
-    static int8_t lastPowState = -1;
+    static int8_t lastPowState = 1;
     int8_t state;
 
     powDebouncer.update();
@@ -75,6 +75,8 @@ void setup()
     pinMode(POW_SWITCH, INPUT_PULLUP);
     powDebouncer.attach(POW_SWITCH);
     powDebouncer.interval(10);
+
+    Serial.println("SMC:0");
 }
 
 void loop()

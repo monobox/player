@@ -54,15 +54,23 @@ class SMC(pykka.ThreadingActor):
     def __init__(self, port):
         super(SMC, self).__init__()
         try:
-            self._serial = serial.Serial(port, 115200, timeout=.5)
+            self._serial = serial.Serial(port, 115200)
         except Exception as error:
             raise RuntimeError('SMC serial connection failed: %s' % error)
 
         self._buffer = ''
         self._is_on = False
 
-    def on_start(self):
+        self._serial.setTimeout(3)
         self._serial.flushInput()
+        preamble = self._serial.readline().strip()
+
+        if preamble != 'SMC:0':
+            raise RuntimeError('Cannot identify SMC')
+
+        self._serial.setTimeout(.5)
+
+    def on_start(self):
         thread = threading.Thread(target=self._thread_run)
         thread.start()
 
