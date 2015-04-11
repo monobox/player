@@ -21,6 +21,7 @@
 from __future__ import unicode_literals
 
 import sys
+import time
 import logging
 import pykka
 from gi.repository import GObject
@@ -89,52 +90,64 @@ class Component(object):
 
 class Plumbing(object):
     def setup(self):
-        self.components = [Component('smc', smc.SMC, port=config.get('smc', 'serial_port')),
-                      Component('playlist', playlist.PlaylistFetcher),
-                      Component('stations_pool', stationspool.StationsPool,
-                                base_url=config.get('stations_pool', 'base_url'),
-                                auth_code=config.get('stations_pool', 'auth_code')),
-                      Component('player', player.StreamPlayer),
-                      Component('feedback', player.FeedbackPlayer,
-                                assets_base_path=config.get('feedback_player', 'assets_base_path'),
-                                volume=config.getfloat('feedback_player', 'volume')),
-                      Component('main_controller', MainController, plumbing=self)]
+        self.components = [
+                Component('feedback', player.FeedbackPlayer,
+                        assets_base_path=config.get('feedback_player', 'assets_base_path'),
+                        volume=config.getfloat('feedback_player', 'volume')),
+                Component('smc', smc.SMC, port=config.get('smc', 'serial_port')),
+                Component('playlist', playlist.PlaylistFetcher),
+                Component('stations_pool', stationspool.StationsPool,
+                        base_url=config.get('stations_pool', 'base_url'),
+                        auth_code=config.get('stations_pool', 'auth_code')),
+                Component('player', player.StreamPlayer),
+                Component('main_controller', MainController, plumbing=self)
+        ]
 
+        for component in self.components:
+            component.start()
+            self.__dict__[component.tag] = component.proxy
+
+    def run(self):
         try:
-            for component in self.components:
-                component.start()
-                self.__dict__[component.tag] = component.proxy
-        except Exception, e:
+            self.setup()
+            main_loop = GObject.MainLoop()
+            main_loop.run()
+        except KeyboardInterrupt:
             self.teardown()
-            raise
+            return 0
+        except Exception, e:
+            logger.exception(e)
+            self._play_error()
+
+            holdoff = config.getfloat('main', 'error_holdoff_time')
+            if holdoff > 0:
+                logger.info('Waiting %.2fs before exiting' % holdoff)
+                time.sleep(holdoff)
+
+            self.teardown()
+            return 1
 
     def teardown(self):
         for component in self.components:
             component.stop()
 
+    def _play_error(self):
+        if 'feedback' in self.__dict__:
+            feedback = self.__dict__['feedback']
 
+            main_loop = GObject.MainLoop()
+
+            feedback.play('error').get()
+            feedback.set_on_eos_callback(main_loop.quit)
+            main_loop.run()
 
 def run():
     # TODO: CAE with log vs config initialization (debug mode, output file)
-    log.init(True)
+    log.init()
     config.init()
 
     plumbing = Plumbing()
-    try:
-        plumbing.setup()
-    except Exception, e:
-        logger.exception(e)
-        plumbing.teardown()
-        sys.exit(1)
-
-    main_loop = GObject.MainLoop()
-    try:
-        main_loop.run()
-    except KeyboardInterrupt:
-        pass
-
-    plumbing.teardown()
-
+    sys.exit(plumbing.run())
 
 if __name__ == '__main__':
     run()

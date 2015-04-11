@@ -107,6 +107,7 @@ class FeedbackPlayer(pykka.ThreadingActor):
         bus.connect('message', self._on_gst_message)
 
         self._volume = volume
+        self._on_eos_callback = lambda: None
 
     def play(self, tag, loop=False):
         logger.debug('Playing %s (loop=%s)' % (tag, loop))
@@ -119,12 +120,16 @@ class FeedbackPlayer(pykka.ThreadingActor):
     def stop_playback(self):
         self._playbin.set_state(Gst.State.NULL)
 
+    def set_on_eos_callback(self, callback):
+        self._on_eos_callback = callback
+
     def _on_gst_message(self, bus, message):
         t = message.type
         if t == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
             logger.error('Error: %s (debug=%s)' % (err, debug))
         elif t == Gst.MessageType.EOS:
+            self._on_eos_callback()
             if self._loop:
                 self._playbin.seek_simple(Gst.Format.TIME, Gst.SeekFlags.FLUSH, 0)
 
