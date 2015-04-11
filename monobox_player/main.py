@@ -111,6 +111,7 @@ class Plumbing(object):
     def run(self):
         try:
             self.setup()
+            self.feedback.play('intro').get()
             main_loop = GObject.MainLoop()
             main_loop.run()
         except KeyboardInterrupt:
