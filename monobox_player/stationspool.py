@@ -30,17 +30,18 @@ class StationsPool(pykka.ThreadingActor):
     def __init__(self, base_url, auth_code):
         super(StationsPool, self).__init__()
         self._stations = []
-        self._stations_pool = []
         self._base_url = base_url
         if self._base_url[-1] == '/':
             self._base_url = self._base_url[:-1]
         self._auth_code = auth_code
         self._session_id = None
 
+        self.register()
+
     def next_station(self):
         if not self._stations:
-            logger.info('Stations pool is empty, starting over')
-            self._stations = self._stations_pool[:]
+            logger.info('Stations pool is empty, getting new list')
+            self.load_stations()
 
         return self._stations.pop()
 
@@ -50,13 +51,12 @@ class StationsPool(pykka.ThreadingActor):
         payload = request.json()
         self._session_id = payload['session_id']
 
-    def refresh(self):
+    def load_stations(self):
         logging.info('Refreshing stations pool')
         # TODO: GET or POST?
         request = requests.get(self._compose('stations'), params={'session_id': self._session_id})
-        self._stations_pool = request.json()['urls']
-        self._stations = self._stations_pool[:]
-        logging.info('%d stations loaded' % len(self._stations_pool))
+        self._stations = request.json()['urls']
+        logging.info('%d stations loaded' % len(self._stations))
 
     def _compose(self, resource):
         return '%s/%s' % (self._base_url, resource)
@@ -67,9 +67,7 @@ if __name__ == '__main__':
     log.init(debug=True)
 
     client = StationsPool.start('http://localhost:8887', '1234567890').proxy()
-    client.register().get()
-    client.refresh().get()
-    for i in xrange(300):
+    for i in xrange(10):
         print client.next_station().get()
 
     client.stop()
