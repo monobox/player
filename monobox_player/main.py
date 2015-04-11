@@ -42,10 +42,9 @@ class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListene
 
     def powered_off(self):
         self.plumbing.player.stop_playback()
-        # TODO: the refresh happens twice at startup, since the smc reports powered_off
-        self.plumbing.stations_pool.refresh().get()
 
     def powered_on(self):
+        self.plumbing.stations_pool.load_stations().get()
         self.play_next()
 
     def volume_changed(self, new_volume):
@@ -53,7 +52,7 @@ class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListene
 
     def button_pressed(self):
         if self.plumbing.smc.is_on().get():
-            self.plumbing.feedback.play('click')
+            # self.plumbing.feedback.play('click')
             self.play_next()
 
     def playback_error(self, code, message):
@@ -94,9 +93,9 @@ class Plumbing(object):
                                 base_url=config.get('stations_pool', 'base_url'),
                                 auth_code=config.get('stations_pool', 'auth_code')),
                       Component('player', player.StreamPlayer),
-                      Component('feedback', player.FeedbackPlayer,
-                                assets_base_path=config.get('feedback_player', 'assets_base_path'),
-                                volume=config.getfloat('feedback_player', 'volume')),
+                      # Component('feedback', player.FeedbackPlayer,
+                      #           assets_base_path=config.get('feedback_player', 'assets_base_path'),
+                      #           volume=config.getfloat('feedback_player', 'volume')),
                       Component('main_controller', MainController, plumbing=self)]
 
         try:
