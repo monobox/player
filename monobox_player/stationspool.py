@@ -27,14 +27,15 @@ import pykka
 logger = logging.getLogger(__name__)
 
 class StationsPool(pykka.ThreadingActor):
-    def __init__(self, stations_url):
+    def __init__(self, base_url, auth_code):
         super(StationsPool, self).__init__()
         self._stations = []
         self._stations_pool = []
-        self._stations_url = stations_url
-
-    def on_start(self):
-        self.refresh()
+        self._base_url = base_url
+        if self._base_url[-1] == '/':
+            self._base_url = self._base_url[:-1]
+        self._auth_code = auth_code
+        self._session_id = None
 
     def next_station(self):
         if not self._stations:
@@ -43,20 +44,31 @@ class StationsPool(pykka.ThreadingActor):
 
         return self._stations.pop()
 
+    def register(self):
+        request = requests.post(self._compose('register'), data={'auth_code': self._auth_code})
+        # TODO: proper failure handling
+        payload = request.json()
+        self._session_id = payload['session_id']
+
     def refresh(self):
         logging.info('Refreshing stations pool')
-        request = requests.get(self._stations_url)
+        # TODO: GET or POST?
+        request = requests.get(self._compose('stations'), params={'session_id': self._session_id})
         self._stations_pool = request.json()['urls']
         self._stations = self._stations_pool[:]
         logging.info('%d stations loaded' % len(self._stations_pool))
 
+    def _compose(self, resource):
+        return '%s/%s' % (self._base_url, resource)
 
 if __name__ == '__main__':
     import log
 
     log.init(debug=True)
 
-    client = StationsPool.start('http://api.monobox.net/random').proxy()
+    client = StationsPool.start('http://localhost:8887', '1234567890').proxy()
+    client.register().get()
+    client.refresh().get()
     for i in xrange(300):
         print client.next_station().get()
 
