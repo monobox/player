@@ -61,6 +61,7 @@ class StreamPlayer(pykka.ThreadingActor):
 
         self._playbin = Gst.ElementFactory.make('playbin', 'stream-playbin')
         self._playbin.set_property('flags', GST_PLAY_FLAG_AUDIO)
+        self._last_volume = 0
         bus = self._playbin.get_bus()
         bus.add_signal_watch()
         bus.connect('message', self._on_gst_message)
@@ -68,12 +69,17 @@ class StreamPlayer(pykka.ThreadingActor):
     def play(self, url):
         self.stop_playback()
         self._playbin.set_property('uri', url)
+        self.set_volume()
         self._playbin.set_state(Gst.State.PLAYING)
 
     def stop_playback(self):
         self._playbin.set_state(Gst.State.NULL)
 
-    def set_volume(self, level):
+    def set_volume(self, level=None):
+        if level is None:
+            level = self._last_volume
+        else:
+            self._last_volume = level
         self._playbin.set_property('volume', level)
         logger.debug('Stream volume level set to %.2f' % level)
 
@@ -94,27 +100,24 @@ class FeedbackPlayer(pykka.ThreadingActor):
         self._loop = False
 
         self._playbin = Gst.ElementFactory.make('playbin', 'feedback-playbin')
-        self._playbin.set_property('flags', GST_PLAY_FLAG_AUDIO)
+        self._playbin.set_property('flags', GST_PLAY_FLAG_AUDIO | GST_PLAY_FLAG_SOFT_VOLUME)
 
         bus = self._playbin.get_bus()
         bus.add_signal_watch()
         bus.connect('message', self._on_gst_message)
 
-        self.set_volume(volume)
+        self._volume = volume
 
     def play(self, tag, loop=False):
         logger.debug('Playing %s (loop=%s)' % (tag, loop))
         self.stop_playback()
         self._loop = loop
         self._playbin.set_property('uri', 'file://%s/%s.wav' % (self._assets_base_path, tag))
+        self._playbin.set_property('volume', self._volume)
         self._playbin.set_state(Gst.State.PLAYING)
 
     def stop_playback(self):
         self._playbin.set_state(Gst.State.NULL)
-
-    def set_volume(self, level):
-        self._playbin.set_property('volume', level)
-        logger.debug('Feedback volume level set to %.2f' % level)
 
     def _on_gst_message(self, bus, message):
         t = message.type
