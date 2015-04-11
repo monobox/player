@@ -90,6 +90,7 @@ class Component(object):
 
 class Plumbing(object):
     def setup(self):
+        self.feedback = None
         self.components = [
                 Component('feedback', player.FeedbackPlayer,
                         assets_base_path=config.get('feedback_player', 'assets_base_path'),
@@ -132,13 +133,11 @@ class Plumbing(object):
             component.stop()
 
     def _play_error(self):
-        if 'feedback' in self.__dict__:
-            feedback = self.__dict__['feedback']
-
+        if self.feedback is not None:
             main_loop = GObject.MainLoop()
 
-            feedback.play('error').get()
-            feedback.set_on_eos_callback(main_loop.quit)
+            self.feedback.play('error').get()
+            self.feedback.set_on_eos_callback(main_loop.quit)
             main_loop.run()
 
 def run():
