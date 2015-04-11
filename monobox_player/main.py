@@ -71,33 +71,51 @@ class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListene
         self.plumbing.player.play(urls[0]).get()
 
 
+class Component(object):
+    def __init__(self, tag, klass, **kargs):
+        self.tag = tag
+        self.klass = klass
+        self.kargs = kargs
+        self.proxy = None
+
+    def start(self):
+        self.proxy = self.klass.start(**self.kargs).proxy()
+
+    def stop(self):
+        if self.proxy:
+            self.proxy.stop()
+
+
 class Plumbing(object):
     def setup(self):
+        self.components = [Component('smc', smc.SMC, port=config.get('smc', 'serial_port')),
+                      Component('playlist', playlist.PlaylistFetcher),
+                      Component('stations_pool', stationspool.StationsPool,
+                                base_url=config.get('stations_pool', 'base_url'),
+                                auth_code=config.get('stations_pool', 'auth_code')),
+                      Component('player', player.StreamPlayer),
+                      Component('feedback', player.FeedbackPlayer,
+                                assets_base_path=config.get('feedback_player', 'assets_base_path'),
+                                volume=config.getfloat('feedback_player', 'volume')),
+                      Component('main_controller', MainController, plumbing=self)]
+
         try:
-            self.smc = smc.SMC.start(config.get('smc', 'serial_port')).proxy()
+            for component in self.components:
+                component.start()
+                self.__dict__[component.tag] = component.proxy
         except Exception, e:
-            logger.error('Cannot initialize SMC: %s' % str(e))
+            self.teardown()
             raise
 
-        self.stations_pool = stationspool.StationsPool.start(config.get('stations_pool', 'api_url')).proxy()
-        self.playlist = playlist.PlaylistFetcher.start().proxy()
-        self.player = player.StreamPlayer.start().proxy()
-        self.feedback = player.FeedbackPlayer(config.get('feedback_player', 'assets_path'),
-                                               config.getfloat('feedback_player', 'volume'))
-        self._main_controller = MainController.start(self)
-
     def teardown(self):
-        self.smc.stop()
-        self.feedback.stop()
-        self.player.stop()
-        self.playlist.stop()
-        self.stations_pool.stop()
-        self._main_controller.stop()
+        for component in self.components:
+            component.stop()
+
 
 
 def run():
     # TODO: CAE with log vs config initialization (debug mode, output file)
-    log.init()
+    log.init(True)
     config.init()
 
     plumbing = Plumbing()
@@ -105,6 +123,7 @@ def run():
         plumbing.setup()
     except Exception, e:
         logger.exception(e)
+        plumbing.teardown()
         sys.exit(1)
 
     main_loop = GObject.MainLoop()
