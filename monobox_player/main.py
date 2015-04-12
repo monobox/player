@@ -47,8 +47,13 @@ class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListene
 
     def powered_on(self):
         self.plumbing.feedback.play('powerup')
-        self.plumbing.stations_pool.load_stations().get()
-        self.play_next()
+        try:
+            self.plumbing.stations_pool.load_stations().get()
+        except Exception, e:
+            logger.exception(e)
+            self.plumbing.feedback.play('error')
+        else:
+            self.play_next()
 
     def volume_changed(self, new_volume):
         self.plumbing.player.set_volume(new_volume).get()
@@ -63,8 +68,14 @@ class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListene
 
     def play_next(self):
         while True:
-            playlist_url = self.plumbing.stations_pool.next_station().get()
-            urls = self.plumbing.playlist.fetch(playlist_url).get()
+            try:
+                playlist_url = self.plumbing.stations_pool.next_station().get()
+                urls = self.plumbing.playlist.fetch(playlist_url).get()
+            except Exception, e:
+                logger.exception(e)
+                self.plumbing.feedback.play('error')
+                return
+
             if urls:
                 break
             else:
