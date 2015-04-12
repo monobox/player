@@ -23,4 +23,4 @@ $ gst-launch-1.0 playbin uri=http://uwstream1.somafm.com:80
 
 ## Main api entry point
 
-* http://api.monobox.net/random
+* http://api.monobox.net/stations
