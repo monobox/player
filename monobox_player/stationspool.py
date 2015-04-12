@@ -47,8 +47,10 @@ class StationsPool(pykka.ThreadingActor):
 
     def register(self):
         request = requests.post(self._compose('register'), data={'auth_code': self._auth_code})
-        # TODO: proper failure handling
         payload = request.json()
+        if not 'session_id' in payload:
+            raise RuntimeError('Registration failed: code=%d reason=%s' % (payload['error_code'],
+                                                                           payload['error_string']))
         self._session_id = payload['session_id']
 
     def load_stations(self):
