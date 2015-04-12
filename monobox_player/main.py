@@ -99,7 +99,7 @@ class Plumbing(object):
                 Component('playlist', playlist.PlaylistFetcher),
                 Component('stations_pool', stationspool.StationsPool,
                         base_url=config.get('stations_pool', 'base_url'),
-                        auth_code=config.get('stations_pool', 'auth_code')),
+                        auth_code=get_auth_code()),
                 Component('player', player.StreamPlayer),
                 Component('main_controller', MainController, plumbing=self)
         ]
@@ -148,6 +148,20 @@ def run():
 
     plumbing = Plumbing()
     sys.exit(plumbing.run())
+
+def get_auth_code():
+    auth_code = config.get('main', 'auth_code')
+    if not auth_code:
+        # http://code.activestate.com/recipes/439094-get-the-ip-address-associated-with-a-network-inter/
+        import fcntl, socket, struct
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', str('eth0')))
+        auth_code = ':'.join(['%02x' % ord(char) for char in info[18:24]])
+
+    logging.info('Auth code: %s' % auth_code)
+
+    return auth_code
 
 if __name__ == '__main__':
     run()
