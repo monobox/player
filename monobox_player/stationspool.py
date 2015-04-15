@@ -47,7 +47,15 @@ class StationsPool(pykka.ThreadingActor):
 
     def register(self):
         request = requests.post(self._compose('register'), data={'auth_code': self._auth_code})
-        payload = request.json()
+        if request.status_code != 200:
+            raise RuntimeError('Got HTTP code %d attempting registration' % request.status_code)
+
+        try:
+            payload = request.json()
+        except ValueError:
+            logger.error('Cannot decode content: %s' % request.text)
+            raise
+
         if not 'session_id' in payload:
             raise RuntimeError('Registration failed: code=%d reason=%s' % (payload['error_code'],
                                                                            payload['error_string']))
@@ -57,7 +65,15 @@ class StationsPool(pykka.ThreadingActor):
         logging.info('Refreshing stations pool')
         # TODO: GET or POST?
         request = requests.get(self._compose('stations'), params={'session_id': self._session_id})
-        self._stations = request.json()['urls']
+        if request.status_code != 200:
+            raise RuntimeError('Got HTTP code %d while refreshing stations list' % request.status_code)
+
+        try:
+            self._stations = request.json()['urls']
+        except ValueError:
+            logger.error('Cannot decode content: %s' % request.text)
+            raise
+
         logging.info('%d stations loaded' % len(self._stations))
 
     def _compose(self, resource):
