@@ -52,7 +52,7 @@ class EmulatorWindow(Gtk.Window):
             smc.SMCListener.send('powered_off')
             self._is_on = False
 
-        smc.SMCListener.send('volume_changed', new_volume=int(value))
+        smc.SMCListener.send('volume_changed', new_volume=float(value/100.0))
 
     def _on_click(self, button):
         smc.SMCListener.send('button_pressed')
