@@ -68,6 +68,7 @@ class StreamPlayer(pykka.ThreadingActor):
 
     def play(self, url):
         self.stop_playback()
+        logger.info('Playing %s' % url)
         self._playbin.set_property('uri', url)
         self.set_volume()
         self._playbin.set_state(Gst.State.PLAYING)

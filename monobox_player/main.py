@@ -32,6 +32,7 @@ import playlist
 import stationspool
 import log
 import config
+import emulator
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +41,15 @@ class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListene
     def __init__(self, plumbing):
         super(MainController, self).__init__()
         self.plumbing = plumbing
+        self._is_on = False
 
     def powered_off(self):
+        self._is_on = False
         self.plumbing.player.stop_playback()
         self.plumbing.feedback.play('powerdown')
 
     def powered_on(self):
+        self._is_on = True
         self.plumbing.feedback.play('powerup')
         try:
             self.plumbing.stations_pool.load_stations().get()
@@ -59,7 +63,7 @@ class MainController(pykka.ThreadingActor, player.PlayerListener, smc.SMCListene
         self.plumbing.player.set_volume(new_volume).get()
 
     def button_pressed(self):
-        if self.plumbing.smc.is_on().get():
+        if self._is_on:
             self.plumbing.feedback.play('next')
             self.play_next()
 
@@ -106,7 +110,7 @@ class Plumbing(object):
                 Component('feedback', player.FeedbackPlayer,
                         assets_base_path=config.get('feedback_player', 'assets_base_path'),
                         volume=config.getfloat('feedback_player', 'volume')),
-                Component('smc', smc.SMC, port=config.get('smc', 'serial_port')),
+                # Component('smc', smc.SMC, port=config.get('smc', 'serial_port')),
                 Component('playlist', playlist.PlaylistFetcher),
                 Component('stations_pool', stationspool.StationsPool,
                         base_url=config.get('stations_pool', 'base_url'),
@@ -123,11 +127,20 @@ class Plumbing(object):
         try:
             self.setup()
             self.feedback.play('intro').get()
-            main_loop = GObject.MainLoop()
-            main_loop.run()
+
+            if config.getboolean('main', 'emulator'):
+                from gi.repository import Gtk
+                import emulator
+
+                window = emulator.EmulatorWindow()
+                window.connect('delete-event', Gtk.main_quit)
+                window.show_all()
+                Gtk.main()
+            else:
+                main_loop = GObject.MainLoop()
+                main_loop.run()
         except KeyboardInterrupt:
-            self.teardown()
-            return 0
+            pass
         except Exception, e:
             logger.exception(e)
             self._play_error()
@@ -139,6 +152,9 @@ class Plumbing(object):
 
             self.teardown()
             return 1
+
+        self.teardown()
+        return 0
 
     def teardown(self):
         for component in self.components:
