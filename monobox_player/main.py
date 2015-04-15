@@ -109,8 +109,13 @@ class Plumbing(object):
         self.components = [
                 Component('feedback', player.FeedbackPlayer,
                         assets_base_path=config.get('feedback_player', 'assets_base_path'),
-                        volume=config.getfloat('feedback_player', 'volume')),
-                # Component('smc', smc.SMC, port=config.get('smc', 'serial_port')),
+                        volume=config.getfloat('feedback_player', 'volume'))
+                ]
+
+        if not config.getboolean('main', 'emulator'):
+            self.components.append(Component('smc', smc.SMC, port=config.get('smc', 'serial_port')))
+
+        self.components += [
                 Component('playlist', playlist.PlaylistFetcher),
                 Component('stations_pool', stationspool.StationsPool,
                         base_url=config.get('stations_pool', 'base_url'),
