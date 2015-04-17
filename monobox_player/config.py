@@ -104,6 +104,7 @@ for meth in ['get', 'getint', 'getfloat', 'getboolean']:
 if __name__ == '__main__':
     import sys
 
-    c = Config()
+    c = ConfigManager()
     print 'Early parse: %s' % str(c.early_parse(sys.argv[1:]))
     print 'New config: %s' % str(c.augment_config())
+    c.config.write(sys.stdout)
