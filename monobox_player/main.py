@@ -191,7 +191,7 @@ def get_auth_code():
         import fcntl, socket, struct
 
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack('256s', str('eth0')))
+        info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack(str('256s'), str('eth0')))
         auth_code = ':'.join(['%02x' % ord(char) for char in info[18:24]])
 
     logging.info('Auth code: %s' % auth_code)
