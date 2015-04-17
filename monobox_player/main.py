@@ -174,9 +174,13 @@ class Plumbing(object):
             main_loop.run()
 
 def run():
-    # TODO: CAE with log vs config initialization (debug mode, output file)
-    log.init()
-    config.init()
+    args = config.manager.early_parse(sys.argv[1:])
+    log.init(args.debug)
+
+    if args.config:
+        config.manager.load_config(args.config)
+
+    config.manager.augment_config()
 
     plumbing = Plumbing()
     sys.exit(plumbing.run())
