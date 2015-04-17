@@ -56,12 +56,17 @@ class ConfigManager(object):
                 add_help=False)
         self._base_parser.add_argument('--debug', action='store_true', help='print debug log messages')
         self._base_parser.add_argument('--config', help='specify a configuration file')
+        self._base_parser.add_argument('--dump-config', action='store_true', help='dump default configuration file')
 
     def load_config(self, path):
         self.config.read(path)
 
     def early_parse(self, argv):
         args, self._remaining_args = self._base_parser.parse_known_args(argv)
+
+        if args.dump_config:
+            self.config.write(sys.stdout)
+            sys.exit(0)
 
         return args
 
