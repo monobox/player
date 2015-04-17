@@ -32,7 +32,6 @@ import playlist
 import stationspool
 import log
 import config
-import emulator
 
 logger = logging.getLogger(__name__)
 
