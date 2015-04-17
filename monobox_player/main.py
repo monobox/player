@@ -155,7 +155,6 @@ class Plumbing(object):
 def run():
     # TODO: CAE with log vs config initialization (debug mode, output file)
     log.init()
-    config.init()
 
     plumbing = Plumbing()
     sys.exit(plumbing.run())

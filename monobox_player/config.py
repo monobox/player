@@ -21,33 +21,35 @@
 from __future__ import unicode_literals
 
 import sys
-import os
 import logging
-import argparse
 import ConfigParser
+import StringIO
 
+DEFAULT_CONFIG='''[main]
+error_holdoff_time=5
+auth_code=
+emulator=false
+
+[stations_pool]
+base_url=http://api.monobox.net/
+
+[feedback_player]
+assets_base_path=assets
+volume=0.05
+
+[smc]
+serial_port=/dev/ttyACM0
+'''
 
 logger = logging.getLogger(__name__)
-_inst = None
+_inst = ConfigParser.ConfigParser()
+_inst.readfp(StringIO.StringIO(DEFAULT_CONFIG))
 
-def init(config_file=None):
-    global _inst
+me = sys.modules[__name__]
+for meth in ['get', 'getint', 'getfloat', 'getboolean']:
+    setattr(me, meth, getattr(_inst, meth))
 
-    if config_file is None:
-        parser = argparse.ArgumentParser(description='monobox player')
-        parser.add_argument('config', help='configuration file')
 
-        args = parser.parse_args()
-        config_file = args.config
-
-    if not os.path.isfile(config_file):
-        logger.error('Cannot file config file %s' % config_file)
-        sys.exit(1)
-    else:
-        logger.info('Loading config from %s' % config_file)
-    _inst = ConfigParser.ConfigParser()
+def add_file(config_file):
+    logger.info('Loading config from %s' % config_file)
     _inst.read(config_file)
-
-    me = sys.modules[__name__]
-    for meth in ['get', 'getint', 'getfloat', 'getboolean']:
-        setattr(me, meth, getattr(_inst, meth))
