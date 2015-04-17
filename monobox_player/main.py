@@ -103,8 +103,11 @@ class Component(object):
 
 
 class Plumbing(object):
-    def setup(self):
+    def __init__(self):
         self.feedback = None
+        self.components = []
+
+    def setup(self):
         self.components = [
                 Component('feedback', player.FeedbackPlayer,
                         assets_base_path=config.get('feedback_player', 'assets_base_path'),
