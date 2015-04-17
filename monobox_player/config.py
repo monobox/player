@@ -21,6 +21,7 @@
 from __future__ import unicode_literals
 
 import sys
+import argparse
 import logging
 import ConfigParser
 import StringIO
@@ -42,14 +43,62 @@ serial_port=/dev/ttyACM0
 '''
 
 logger = logging.getLogger(__name__)
-_inst = ConfigParser.ConfigParser()
-_inst.readfp(StringIO.StringIO(DEFAULT_CONFIG))
 
+
+class ConfigManager(object):
+    def __init__(self):
+        self.config = ConfigParser.ConfigParser()
+        self.config.readfp(StringIO.StringIO(DEFAULT_CONFIG))
+
+        self._remaining_args = None
+        self._base_parser = argparse.ArgumentParser(
+                formatter_class=argparse.RawDescriptionHelpFormatter,
+                add_help=False)
+        self._base_parser.add_argument('--debug', action='store_true', help='print debug log messages')
+        self._base_parser.add_argument('--config', help='specify a configuration file')
+
+    def load_config(self, path):
+        self.config.read(path)
+
+    def early_parse(self, argv):
+        args, self._remaining_args = self._base_parser.parse_known_args(argv)
+
+        return args
+
+    def augment_config(self):
+        parser = argparse.ArgumentParser(parents=[self._base_parser],
+                                         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+        for section in self.config.sections():
+            group = parser.add_argument_group('%s section' % section)
+            for option in self.config.options(section):
+                option_tag = '%s.%s' % (self._demangle(section), self._demangle(option))
+                current_value = self.config.get(section, option)
+
+                group.add_argument('--%s' % option_tag, default=current_value, help='Config override')
+
+        args = parser.parse_args(self._remaining_args)
+
+        for key, value in args.__dict__.iteritems():
+            if value is not None and '.' in key:
+                section, option = key.split('.', 1)
+                self.config.set(section, option, value)
+
+    def _demangle(self, text):
+        return text.replace('_', '-').lower()
+
+
+manager = ConfigManager()
+
+# Patch ConfigParser query methods to the module level
 me = sys.modules[__name__]
 for meth in ['get', 'getint', 'getfloat', 'getboolean']:
-    setattr(me, meth, getattr(_inst, meth))
+    setattr(me, meth, getattr(manager.config, meth))
 
 
-def add_file(config_file):
-    logger.info('Loading config from %s' % config_file)
-    _inst.read(config_file)
+if __name__ == '__main__':
+    import sys
+
+    c = Config()
+    print 'Early parse: %s' % str(c.early_parse(sys.argv[1:]))
+    print 'New config: %s' % str(c.augment_config())
