@@ -5,7 +5,7 @@
 #define ENCODER_A   4
 #define ENCODER_B   5
 
-#define ENCODER_MAX_COUNTS      7
+#define ENCODER_MAX_COUNTS      27
 
 // Bounce2 https://github.com/thomasfredericks/Bounce-Arduino-Wiring/
 #include <Bounce2.h>
@@ -13,23 +13,60 @@
 Bounce mainDebouncer = Bounce(); 
 Bounce powDebouncer = Bounce();
 
-volatile uint8_t encoderState = 0;
-volatile uint8_t encoderPosition = 0;
+volatile uint8_t lastStateA = 0, lastStateB = 0;
+volatile int8_t encoderPosition;
 
 ISR(PCINT2_vect)
 {
-    int state = PIND & _BV(PIND4);
+    uint8_t stateA = PIND & _BV(PIND4);
+    uint8_t stateB = PIND & _BV(PIND5);
 
-    if (state != encoderState) {
-        if (!state) {
-            if (PIND & _BV(PIND5)) {
+    // A changed state
+    if (stateA != lastStateA) {
+        // Positive A flank
+        if (stateA) {
+            if (stateB) {
+                if (encoderPosition > 0) {
+                    --encoderPosition;
+                }
+            } else {
                 ++encoderPosition;
-            } else if (encoderPosition > 0) {
-                --encoderPosition;
+            }
+        // Negative A flank
+        } else {
+            if (stateB) {
+                ++encoderPosition;
+            } else {
+                if (encoderPosition > 0) {
+                    --encoderPosition;
+                }
+            }
+        }
+    // B changed state (the test is unnecessary)
+    } else if (stateB != lastStateB) {
+        // Positive B flank
+        if (stateB) {
+            if (stateA) {
+                ++encoderPosition;
+            } else {
+                if (encoderPosition > 0) {
+                    --encoderPosition;
+                }
+            }
+        // Negative B flank
+        } else {
+            if (stateA) {
+                if (encoderPosition > 0) {
+                    --encoderPosition;
+                }
+            } else {
+                ++encoderPosition;
             }
         }
     }
-    encoderState = state;
+
+    lastStateA = stateA;
+    lastStateB = stateB;
 }
 
 void checkMainButton()
