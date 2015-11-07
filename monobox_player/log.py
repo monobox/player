@@ -30,3 +30,7 @@ def init(debug=False):
 
     logging.basicConfig(level=level,
                         format='%(asctime)-15s [%(levelname)-7s]: %(message)s (%(filename)s:%(lineno)s)')
+
+    # Silence requests
+    # http://stackoverflow.com/a/11029841
+    logging.getLogger('requests').setLevel(logging.WARNING)
