@@ -189,13 +189,19 @@ def run():
 
 def get_auth_code():
     auth_code = config.get('main', 'auth_code')
-    if not auth_code:
-        # http://code.activestate.com/recipes/439094-get-the-ip-address-associated-with-a-network-inter/
-        import fcntl, socket, struct
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack(str('256s'), str('eth0')))
-        auth_code = ':'.join(['%02x' % ord(char) for char in info[18:24]])
+    import platform
+
+    if not auth_code:
+        if platform.system() == 'Linux':
+            # http://code.activestate.com/recipes/439094-get-the-ip-address-associated-with-a-network-inter/
+            import fcntl, socket, struct
+
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            info = fcntl.ioctl(s.fileno(), 0x8927,  struct.pack(str('256s'), str('eth0')))
+            auth_code = ':'.join(['%02x' % ord(char) for char in info[18:24]])
+        else:
+            raise RuntimeError('Cannot determine auth_code, specify it in the config file')
 
     logging.info('Auth code: %s' % auth_code)
 
