@@ -33,4 +33,4 @@ def init(debug=False):
 
     # Silence requests
     # http://stackoverflow.com/a/11029841
-    logging.getLogger('requests').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
