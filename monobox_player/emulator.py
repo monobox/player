@@ -17,7 +17,9 @@
 #
 # Copyright (c) 2015 by OXullo Intersecans / bRAiNRAPERS
 
+import gi
 
+gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 
 import smc
@@ -36,8 +38,8 @@ class EmulatorWindow(Gtk.Window):
         slider.connect('value-changed', self._on_volume_changed)
         box.pack_start(slider, True, True, 0)
 
-        button = Gtk.Button('Click')
-        button.connect('clicked', self._on_click)
+        button = Gtk.Button('Button')
+        button.connect('clicked', self._on_button)
         box.add(button)
 
         self.resize(300, 100)
@@ -54,7 +56,7 @@ class EmulatorWindow(Gtk.Window):
 
         smc.SMCListener.send('volume_changed', new_volume=float(value/100.0))
 
-    def _on_click(self, button):
+    def _on_button(self, button):
         smc.SMCListener.send('button_pressed')
 
 

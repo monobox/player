@@ -34,7 +34,7 @@ class StationsPool(pykka.ThreadingActor):
         if self._base_url[-1] == '/':
             self._base_url = self._base_url[:-1]
         self._auth_code = auth_code
-        self._session_id = None
+        self._session_code = None
 
         self.register()
 
@@ -56,15 +56,15 @@ class StationsPool(pykka.ThreadingActor):
             logger.error('Cannot decode content: %s' % request.text)
             raise
 
-        if not 'session_id' in payload:
+        if not 'session_code' in payload:
             raise RuntimeError('Registration failed: code=%d reason=%s' % (payload['error_code'],
                                                                            payload['error_string']))
-        self._session_id = payload['session_id']
+        self._session_code = payload['session_code']
 
     def load_stations(self):
         logging.info('Refreshing stations pool')
-        # TODO: GET or POST?
-        request = requests.get(self._compose('stations'), params={'session_id': self._session_id})
+
+        request = requests.get(self._compose('stations'), params={'session_code': self._session_code})
         if request.status_code != 200:
             raise RuntimeError('Got HTTP code %d while refreshing stations list' % request.status_code)
 
@@ -77,14 +77,14 @@ class StationsPool(pykka.ThreadingActor):
         logging.info('%d stations loaded' % len(self._stations))
 
     def _compose(self, resource):
-        return '%s/%s' % (self._base_url, resource)
+        return '%s/%s/' % (self._base_url, resource)
 
 if __name__ == '__main__':
     import log
 
     log.init(debug=True)
 
-    client = StationsPool.start('http://localhost:8887', '1234567890').proxy()
+    client = StationsPool.start('http://localhost:8000/api/v1/', '123456').proxy()
     for i in xrange(10):
         print client.next_station().get()
 
