@@ -114,7 +114,7 @@ class FeedbackPlayer(pykka.ThreadingActor):
         logger.debug('Playing %s (loop=%s)' % (tag, loop))
         self.stop_playback()
         self._loop = loop
-        self._playbin.set_property('uri', 'file://%s/%s.mp3' % (self._assets_base_path, tag))
+        self._playbin.set_property('uri', 'file://%s/%s.wav' % (self._assets_base_path, tag))
         self._playbin.set_property('volume', self._volume)
         self._playbin.set_state(Gst.State.PLAYING)
 
