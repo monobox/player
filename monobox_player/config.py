@@ -32,7 +32,7 @@ auth_code=
 emulator=false
 
 [stations_pool]
-base_url=http://api.monobox.net/
+base_url=http://www.monobox.net/api/v1/
 
 [feedback_player]
 assets_base_path=assets
