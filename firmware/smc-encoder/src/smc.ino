@@ -5,13 +5,19 @@
 #define ENCODER_A   4
 #define ENCODER_B   5
 
+#define MCP4131_CS  10
+
 #define ENCODER_MAX_COUNTS      27
 
 // Bounce2 https://github.com/thomasfredericks/Bounce-Arduino-Wiring/
 #include <Bounce2.h>
 
+// https://github.com/jmalloc/arduino-mcp4xxx
+#include <mcp4xxx.h>
+
 Bounce mainDebouncer = Bounce(); 
 Bounce powDebouncer = Bounce();
+MCP4XXX pot(MCP4131_CS);
 
 volatile uint8_t lastStateA = 0, lastStateB = 0;
 volatile int8_t encoderPosition;
@@ -79,8 +85,27 @@ void checkMainButton()
     if (state != lastMainState) {
         Serial.print("B:");
         Serial.println(!state);
+
+        if (state) {
+            tone(9, 800);
+            delay(100);
+            noTone(9);
+        }
     }
     lastMainState = state;
+}
+
+void beep()
+{
+    tone(9, 200);
+    delay(100);
+    tone(9, 400);
+    delay(100);
+    tone(9, 600);
+    delay(100);
+    tone(9, 800);
+    delay(100);
+    noTone(9);
 }
 
 void checkPowerSwitch()
@@ -90,12 +115,15 @@ void checkPowerSwitch()
 
     powDebouncer.update();
     state = powDebouncer.read();
+
     if (state != lastPowState) {
         Serial.print("P:");
         Serial.println(state);
 
         if (state == 0) {
             encoderPosition = 0;
+        } else {
+            beep();
         }
     }
     lastPowState = state;
@@ -104,6 +132,8 @@ void checkPowerSwitch()
 void checkEncoder()
 {
     static uint8_t lastEncoderPosition = 0;
+
+    pot.set(map(encoderPosition, 0, ENCODER_MAX_COUNTS, 0, 127));
 
     if (lastEncoderPosition != encoderPosition) {
         Serial.print("V:");
@@ -129,6 +159,7 @@ void setup()
     PCMSK2 |= _BV(PCINT20);
     PCMSK2 |= _BV(PCINT21);
 
+    pot.set(0);
     Serial.println("SMC:0");
 }
 
